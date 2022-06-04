@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -57,7 +58,7 @@ func (b *DiscordBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCre
 	fmt.Println("Sent Message", msg.ID)
 }
 
-func (b *DiscordBot) Start() {
+func (b *DiscordBot) Start(wg *sync.WaitGroup) {
 	err := b.Session.Open()
 
 	if err != nil {
@@ -72,4 +73,5 @@ func (b *DiscordBot) Start() {
 
 	// Cleanly close down the Discord session.
 	b.Session.Close()
+	wg.Done()
 }

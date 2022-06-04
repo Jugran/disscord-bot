@@ -4,7 +4,7 @@ import (
 	"diss-cord/handlers"
 	"diss-cord/models/config"
 	"fmt"
-	"log"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +30,8 @@ func (a *App) SetRouters() {
 	a.Router.POST("/echo", handlers.EchoResponseHandler)
 }
 
-func (a *App) Serve() {
+func (a *App) Serve(wg *sync.WaitGroup) {
 	port := fmt.Sprintf(":%d", a.PORT)
-	log.Fatal(a.Router.Run(port))
+	a.Router.Run(port)
+	wg.Done()
 }
