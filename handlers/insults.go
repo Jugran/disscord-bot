@@ -1,16 +1,23 @@
 package handlers
 
 import (
-	"diss-cord/models/insults"
+	"diss-cord/models"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+type addInsultSchema struct {
+	Text     string `json:"text" binding:"required"`
+	Target   string `json:"target" binding:"required"`
+	Severity uint8  `json:"severity" binding:"required"`
+}
+
 func GetInsultHandler(c *gin.Context) {
-	insultsData := insults.NewInsults()
+	insultsData := models.NewInsults()
 	insult := insultsData.GetInsult()
 
 	c.JSON(http.StatusOK, gin.H{
@@ -34,4 +41,44 @@ func EchoResponseHandler(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{
 		"data": jsonData,
 	})
+}
+
+func AddInsult(c *gin.Context) {
+	var body addInsultSchema
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	insult := models.Insult{
+		Text:     body.Text,
+		Target:   body.Target,
+		Severity: body.Severity,
+	}
+
+	models.AddInsult(&insult)
+
+	c.JSON(http.StatusCreated, &insult)
+}
+
+func FetchInsult(c *gin.Context) {
+	var insult models.Insult
+	target := c.Param("target")
+
+	var result *gorm.DB
+
+	if len(target) != 0 {
+		result = models.DB.Order("random()").Limit(1).Where("target = ?", target).Find(&insult)
+	} else {
+		result = models.DB.Order("random()").Limit(1).Find(&insult)
+	}
+
+	if result.Error != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": result.Error.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"insult": insult, "target": target})
 }

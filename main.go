@@ -4,8 +4,7 @@ package main
 
 import (
 	"diss-cord/app"
-	"diss-cord/bot"
-	"diss-cord/models/config"
+	"diss-cord/models"
 	"sync"
 )
 
@@ -14,15 +13,15 @@ func main() {
 
 	wg.Add(1)
 
-	config := config.NewConfig()
+	config := models.NewConfig()
 
 	app := app.App{}
 	app.Initialize(&config)
 	app.SetRouters()
 	go app.Serve(&wg)
 
-	bot := bot.NewBot(config.Token)
-	go bot.Start(&wg)
+	// bot := bot.NewBot(config.Token)
+	// go bot.Start(&wg)
 
 	wg.Wait()
 

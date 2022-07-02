@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"diss-cord/models"
 	"diss-cord/models/insults"
 	"fmt"
 	"log"
@@ -31,7 +32,7 @@ func NewBot(Token string) *DiscordBot {
 	bot.Session = session
 	session.AddHandler(bot.messageCreate)
 
-	insults := insults.NewInsults()
+	insults := models.NewInsults()
 
 	bot.Insults = &insults
 	bot.Insults.LoadInsults()
