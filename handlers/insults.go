@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"diss-cord/models"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,22 +12,27 @@ import (
 )
 
 type addInsultSchema struct {
-	Text     string `json:"text" binding:"required"`
-	Target   string `json:"target" binding:"required"`
-	Severity uint8  `json:"severity" binding:"required"`
+	Text     string   `json:"text" binding:"required"`
+	Severity uint8    `json:"severity" binding:"required"`
+	Roles    []string `json:"roles" binding:"required"`
 }
 
 func GetInsultHandler(c *gin.Context) {
-	insultsData := models.NewInsults()
-	insult := insultsData.GetInsult()
+	insults, count := models.FindInsults()
+
+	fmt.Printf("Fetched %d insult entries", count)
 
 	c.JSON(http.StatusOK, gin.H{
-		"insult": insult,
+		"insults": insults,
+		"count":   count,
 	})
 }
 
 func EchoResponseHandler(c *gin.Context) {
 	body, err := ioutil.ReadAll(c.Request.Body)
+
+	// generic map type
+	var jsonData map[string]interface{}
 
 	if err != nil {
 		// Handle error
@@ -34,7 +40,14 @@ func EchoResponseHandler(c *gin.Context) {
 		c.Status(http.StatusBadRequest)
 		return
 	}
-	jsonData := string(body)
+
+	err = json.Unmarshal([]byte(body), &jsonData)
+
+	if err != nil {
+		fmt.Println("Error", err)
+		c.Status(http.StatusBadRequest)
+		return
+	}
 
 	fmt.Println(jsonData)
 
@@ -46,17 +59,19 @@ func EchoResponseHandler(c *gin.Context) {
 func AddInsult(c *gin.Context) {
 	var body addInsultSchema
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error":   err.Error(),
+			"message": "Invalid Input",
+		})
 		return
 	}
 
 	insult := models.Insult{
 		Text:     body.Text,
-		Target:   body.Target,
 		Severity: body.Severity,
 	}
 
-	models.AddInsult(&insult)
+	models.AddInsult(&insult, body.Roles)
 
 	c.JSON(http.StatusCreated, &insult)
 }

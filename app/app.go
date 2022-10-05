@@ -31,10 +31,18 @@ func (a *App) Initialize(config *models.Config) {
 }
 
 func (a *App) SetRouters() {
-	a.Router.GET("/insult/:target", handlers.FetchInsult)
-	a.Router.GET("/insult", handlers.FetchInsult)
 	a.Router.POST("/echo", handlers.EchoResponseHandler)
+	a.Router.GET("/insult/:target", handlers.FetchInsult)
+
+	a.Router.GET("/insult", handlers.GetInsultHandler)
 	a.Router.POST("/insult/add", handlers.AddInsult)
+
+	a.Router.PUT("/role/:name", handlers.AddRoleHandler)
+
+	a.Router.GET("/user/all", handlers.GetUsersHandler)
+	a.Router.POST("/user/add", handlers.AddUserHandler)
+	a.Router.PATCH("/user/role", handlers.AddUserRoleHandler)
+
 }
 
 func (a *App) Serve(wg *sync.WaitGroup) {

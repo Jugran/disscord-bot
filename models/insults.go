@@ -8,29 +8,43 @@ import (
 )
 
 type InsultData struct {
+	// old data insult data will be replaced
 	Insults []Insult
 }
 
 type Insult struct {
 	gorm.Model
 	Text     string `json:"text"`
-	Target   string `json:"target"`
 	Severity uint8  `json:"severity"`
 }
 
-func FindInsults() []Insult {
+func FindInsults() ([]Insult, int64) {
 	var insults []Insult
 
-	DB.Find(&insults)
-
-	return insults
-}
-
-func AddInsult(insult *Insult) bool {
-	result := DB.Create(&insult)
+	result := DB.Find(&insults)
 
 	if result.Error != nil {
-		fmt.Println("Cannot add insult data:", result.Error)
+		fmt.Println("Cannot fetch insult data:", result.Error)
+		return []Insult{}, 0
+	}
+	return insults, result.RowsAffected
+
+}
+
+func AddInsult(insult *Insult, roles []string) bool {
+
+	var userRoles []Role
+
+	for _, role := range roles {
+		userRoles = append(userRoles, Role{
+			Name: role,
+		})
+	}
+
+	err := DB.Create(&insult).Association("Roles").Append(userRoles)
+
+	if err != nil {
+		fmt.Println("Cannot add insult data:", err)
 		return false
 	}
 
@@ -48,6 +62,8 @@ func UpdateInsult(insult *Insult) int64 {
 	return result.RowsAffected
 }
 
+// ---------- old shit ------------
+
 func NewInsults() InsultData {
 	insultData := InsultData{
 		Insults: []Insult{},
@@ -61,12 +77,10 @@ func (insultData *InsultData) LoadInsults() {
 	insultData.Insults = []Insult{
 		{
 			Text:     "You're a jerk.",
-			Target:   "members",
 			Severity: 1,
 		},
 		{
 			Text:     "You're an idiot.",
-			Target:   "members",
 			Severity: 1,
 		},
 	}
