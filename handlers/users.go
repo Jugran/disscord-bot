@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
 	"diss-cord/models"
 	"fmt"
 	"net/http"
@@ -41,13 +40,13 @@ func AddRoleHandler(c *gin.Context) {
 		Name: roleData.Name,
 	}
 
-	models.AddRole(&role)
+	models.AddRoleAction(&role)
 
 	c.JSON(http.StatusCreated, &role)
 }
 
-func GetUsersHandler(c *gin.Context) {
-	users, count := models.FetchAllUsers()
+func FetchUsersHandler(c *gin.Context) {
+	users, count := models.FetchAllUsersActions()
 
 	fmt.Printf("Fetched %d user entries", count)
 
@@ -67,19 +66,14 @@ func AddUserHandler(c *gin.Context) {
 		return
 	}
 
-	name := sql.NullString{String: *userData.Name, Valid: true}
-	if userData.Name == nil {
-		name = sql.NullString{Valid: false}
-	}
-
 	user := models.User{
-		Name:              name,
+		Name:              userData.Name,
 		Disrespect:        userData.Disrespect,
 		DiscordID:         userData.DiscordID,
 		SeverityThreshold: userData.SeverityThreshold,
 	}
 
-	models.AddUser(&user, &userData.Roles)
+	models.AddUserAction(&user, &userData.Roles)
 
 	c.JSON(http.StatusCreated, &user)
 }
@@ -94,7 +88,7 @@ func AddUserRoleHandler(c *gin.Context) {
 		return
 	}
 
-	models.AddUserRoles(userData.UserID, userData.Roles)
+	models.AddUserRolesAction(userData.UserID, userData.Roles)
 
 	c.JSON(http.StatusCreated, &userData)
 }

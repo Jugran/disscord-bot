@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"diss-cord/models"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +15,8 @@ type addInsultSchema struct {
 	Roles    []string `json:"roles" binding:"required"`
 }
 
-func GetInsultHandler(c *gin.Context) {
-	insults, count := models.FindInsults()
+func FetchInsultHandler(c *gin.Context) {
+	insults, count := models.FindInsultsAction()
 
 	fmt.Printf("Fetched %d insult entries", count)
 
@@ -28,35 +26,7 @@ func GetInsultHandler(c *gin.Context) {
 	})
 }
 
-func EchoResponseHandler(c *gin.Context) {
-	body, err := ioutil.ReadAll(c.Request.Body)
-
-	// generic map type
-	var jsonData map[string]interface{}
-
-	if err != nil {
-		// Handle error
-		fmt.Println("Error", err)
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	err = json.Unmarshal([]byte(body), &jsonData)
-
-	if err != nil {
-		fmt.Println("Error", err)
-		c.Status(http.StatusBadRequest)
-		return
-	}
-
-	fmt.Println(jsonData)
-
-	c.JSON(http.StatusAccepted, gin.H{
-		"data": jsonData,
-	})
-}
-
-func AddInsult(c *gin.Context) {
+func AddInsultHandler(c *gin.Context) {
 	var body addInsultSchema
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -71,7 +41,7 @@ func AddInsult(c *gin.Context) {
 		Severity: body.Severity,
 	}
 
-	models.AddInsult(&insult, body.Roles)
+	models.AddInsultAction(&insult, &body.Roles)
 
 	c.JSON(http.StatusCreated, &insult)
 }

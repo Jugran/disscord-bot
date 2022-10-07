@@ -15,10 +15,13 @@ type InsultData struct {
 type Insult struct {
 	gorm.Model
 	Text     string `json:"text"`
-	Severity uint8  `json:"severity"`
+	Severity uint8  `json:"severity" gorm:"default:0"`
+	Roles    []Role `gorm:"many2many:insult_roles"`
 }
 
-func FindInsults() ([]Insult, int64) {
+// TODO: make all actions receiver functions
+
+func FindInsultsAction() ([]Insult, int64) {
 	var insults []Insult
 
 	result := DB.Find(&insults)
@@ -31,27 +34,25 @@ func FindInsults() ([]Insult, int64) {
 
 }
 
-func AddInsult(insult *Insult, roles []string) bool {
+func AddInsultAction(insult *Insult, roleNames *[]string) bool {
+	roles := GetRolesByName(roleNames)
 
-	var userRoles []Role
-
-	for _, role := range roles {
-		userRoles = append(userRoles, Role{
-			Name: role,
-		})
+	if roles != nil {
+		insult.Roles = *roles
 	}
 
-	err := DB.Create(&insult).Association("Roles").Append(userRoles)
+	result := DB.Debug().Omit("Roles.*").Create(&insult)
 
-	if err != nil {
-		fmt.Println("Cannot add insult data:", err)
+	if result.Error != nil {
+		fmt.Println("Cannot add insult data:", result.Error)
 		return false
 	}
 
 	return true
 }
 
-func UpdateInsult(insult *Insult) int64 {
+func UpdateInsultAction(insult *Insult) int64 {
+	// This won't work, unless pass in ID from API
 	result := DB.Model(&insult).Updates(insult)
 
 	if result.Error != nil {
@@ -60,6 +61,17 @@ func UpdateInsult(insult *Insult) int64 {
 	}
 
 	return result.RowsAffected
+}
+
+func DeleteInsultAction(insult *Insult) bool {
+	result := DB.Debug().Delete(&insult)
+
+	if result.Error != nil {
+		fmt.Println("Cannot add insult data:", result.Error)
+		return false
+	}
+
+	return true
 }
 
 // ---------- old shit ------------

@@ -3,7 +3,10 @@ package app
 import (
 	"diss-cord/handlers"
 	"diss-cord/models"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -30,16 +33,44 @@ func (a *App) Initialize(config *models.Config) {
 	//  init discord bot instance here
 }
 
-func (a *App) SetRouters() {
-	a.Router.POST("/echo", handlers.EchoResponseHandler)
-	a.Router.GET("/insult/:target", handlers.FetchInsult)
+func echoResponseHandler(c *gin.Context) {
+	body, err := ioutil.ReadAll(c.Request.Body)
 
-	a.Router.GET("/insult", handlers.GetInsultHandler)
-	a.Router.POST("/insult/add", handlers.AddInsult)
+	// generic map type
+	var jsonData map[string]interface{}
+
+	if err != nil {
+		// Handle error
+		fmt.Println("Error", err)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = json.Unmarshal([]byte(body), &jsonData)
+
+	if err != nil {
+		fmt.Println("Error", err)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println(jsonData)
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"data": jsonData,
+	})
+}
+
+func (a *App) SetRouters() {
+	a.Router.POST("/echo", echoResponseHandler)
+
+	a.Router.GET("/insult", handlers.FetchInsultHandler)
+	a.Router.GET("/insult/:target", handlers.FetchInsult)
+	a.Router.POST("/insult/add", handlers.AddInsultHandler)
 
 	a.Router.PUT("/role/:name", handlers.AddRoleHandler)
 
-	a.Router.GET("/user/all", handlers.GetUsersHandler)
+	a.Router.GET("/user/all", handlers.FetchUsersHandler)
 	a.Router.POST("/user/add", handlers.AddUserHandler)
 	a.Router.PATCH("/user/role", handlers.AddUserRoleHandler)
 

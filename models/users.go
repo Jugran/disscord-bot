@@ -3,7 +3,6 @@ package models
 // https://foaas.com/
 
 import (
-	"database/sql"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -11,20 +10,21 @@ import (
 
 type User struct {
 	gorm.Model
-	Name              sql.NullString `json:"name" gorm:"type:varchar(30)"`
-	Disrespect        float32        `json:"disrespect" gorm:"default:0.5"`
-	DiscordID         string         `json:"discord_id" gorm:"uniqueIndex;not null;default:null"`
-	SeverityThreshold uint8          `json:"severity_threshold" gorm:"default:2"`
-	Roles             []Role         `gorm:"many2many:user_role"`
+	Name              *string `json:"name" gorm:"type:varchar(30)"`
+	Disrespect        float32 `json:"disrespect" gorm:"default:0.5"`
+	DiscordID         string  `json:"discord_id" gorm:"uniqueIndex;not null;default:null"`
+	SeverityThreshold uint8   `json:"severity_threshold" gorm:"default:2"`
+	Roles             []Role  `gorm:"many2many:user_roles"`
 }
 
 type Role struct {
 	gorm.Model
-	Name    string   `json:"name" gorm:"uniqueIndex;not null;default:null"`
-	Insults []Insult `gorm:"many2many:role_insult"`
+	Name string `json:"name" gorm:"uniqueIndex;not null;default:null"`
 }
 
-func FetchAllUsers() ([]User, int64) {
+// DB Model Actions
+
+func FetchAllUsersActions() ([]User, int64) {
 	var users []User
 	result := DB.Preload("Roles").Find(&users)
 
@@ -36,15 +36,14 @@ func FetchAllUsers() ([]User, int64) {
 	return users, result.RowsAffected
 }
 
-func AddUser(user *User, roleNames *[]string) bool {
+func AddUserAction(user *User, roleNames *[]string) bool {
 	roles := GetRolesByName(roleNames)
-	result := DB.Debug().Where("name IN (?)", *roleNames).Find(&roles)
 
-	if result.Error == nil {
+	if roles != nil {
 		user.Roles = *roles
 	}
 
-	result = DB.Debug().Omit("Roles.*").Create(&user)
+	result := DB.Debug().Omit("Roles.*").Create(&user)
 
 	if result.Error != nil {
 		fmt.Println("Cannot add user data:", result.Error)
@@ -54,7 +53,7 @@ func AddUser(user *User, roleNames *[]string) bool {
 	return true
 }
 
-func AddRole(role *Role) bool {
+func AddRoleAction(role *Role) bool {
 	result := DB.Create(&role)
 
 	if result.Error != nil {
@@ -65,7 +64,7 @@ func AddRole(role *Role) bool {
 	return true
 }
 
-func AddUserRoles(userID int, roleNames []string) bool {
+func AddUserRolesAction(userID int, roleNames []string) bool {
 	roles := GetRolesByName(&roleNames)
 
 	err := DB.Debug().
@@ -82,7 +81,7 @@ func AddUserRoles(userID int, roleNames []string) bool {
 	return true
 }
 
-func RemoveUserRole(userID int, roleName string) bool {
+func RemoveUserRoleAction(userID int, roleName string) bool {
 	role := GetRolesByName(&[]string{
 		roleName,
 	})
