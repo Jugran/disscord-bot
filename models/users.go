@@ -1,5 +1,7 @@
 package models
 
+// https://foaas.com/
+
 import (
 	"database/sql"
 	"fmt"
@@ -24,7 +26,7 @@ type Role struct {
 
 func FetchAllUsers() ([]User, int64) {
 	var users []User
-	result := DB.Find(&users)
+	result := DB.Preload("Roles").Find(&users)
 
 	if result.Error != nil {
 		fmt.Println("Cannot fetch user data:", result.Error)
@@ -34,8 +36,15 @@ func FetchAllUsers() ([]User, int64) {
 	return users, result.RowsAffected
 }
 
-func AddUser(user *User) bool {
-	result := DB.Create(&user)
+func AddUser(user *User, roleNames *[]string) bool {
+	roles := GetRolesByName(roleNames)
+	result := DB.Debug().Where("name IN (?)", *roleNames).Find(&roles)
+
+	if result.Error == nil {
+		user.Roles = *roles
+	}
+
+	result = DB.Debug().Omit("Roles.*").Create(&user)
 
 	if result.Error != nil {
 		fmt.Println("Cannot add user data:", result.Error)
@@ -56,10 +65,14 @@ func AddRole(role *Role) bool {
 	return true
 }
 
-func AddUserRole(userID int, roleName string) bool {
-	err := DB.Model(&User{Model: gorm.Model{ID: uint(userID)}}).Association("Roles").Append([]Role{
-		{Name: roleName},
-	})
+func AddUserRoles(userID int, roleNames []string) bool {
+	roles := GetRolesByName(&roleNames)
+
+	err := DB.Debug().
+		Model(&User{Model: gorm.Model{ID: uint(userID)}}).
+		Omit("Roles.*").
+		Association("Roles").
+		Append(roles)
 
 	if err != nil {
 		fmt.Println("Cannot add user role:", err)
@@ -70,9 +83,11 @@ func AddUserRole(userID int, roleName string) bool {
 }
 
 func RemoveUserRole(userID int, roleName string) bool {
-	err := DB.Model(&User{Model: gorm.Model{ID: uint(userID)}}).Association("Roles").Delete([]Role{
-		{Name: roleName},
+	role := GetRolesByName(&[]string{
+		roleName,
 	})
+
+	err := DB.Model(&User{Model: gorm.Model{ID: uint(userID)}}).Association("Roles").Delete(role)
 
 	if err != nil {
 		fmt.Println("Cannot remove user role:", err)
@@ -80,4 +95,18 @@ func RemoveUserRole(userID int, roleName string) bool {
 	}
 
 	return true
+}
+
+func GetRolesByName(roleNames *[]string) *[]Role {
+
+	roles := []Role{}
+
+	result := DB.Debug().Where("name IN (?)", *roleNames).Find(&roles)
+
+	if result.Error != nil {
+		fmt.Println("Cannot fetch role:", result.Error)
+		return nil
+	}
+
+	return &roles
 }

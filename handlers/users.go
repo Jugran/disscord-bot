@@ -22,8 +22,8 @@ type roleSchema struct {
 }
 
 type userRoleShema struct {
-	UserID int    `json:"user_id" binding:"required"`
-	Role   string `json:"role" binding:"required"`
+	UserID int      `json:"user_id" binding:"required"`
+	Roles  []string `json:"roles" binding:"required"`
 }
 
 func AddRoleHandler(c *gin.Context) {
@@ -72,23 +72,14 @@ func AddUserHandler(c *gin.Context) {
 		name = sql.NullString{Valid: false}
 	}
 
-	var roles []models.Role
-
-	for _, role := range userData.Roles {
-		roles = append(roles, models.Role{
-			Name: role,
-		})
-	}
-
 	user := models.User{
 		Name:              name,
 		Disrespect:        userData.Disrespect,
 		DiscordID:         userData.DiscordID,
 		SeverityThreshold: userData.SeverityThreshold,
-		Roles:             roles,
 	}
 
-	models.AddUser(&user)
+	models.AddUser(&user, &userData.Roles)
 
 	c.JSON(http.StatusCreated, &user)
 }
@@ -103,7 +94,7 @@ func AddUserRoleHandler(c *gin.Context) {
 		return
 	}
 
-	models.AddUserRole(userData.UserID, userData.Role)
+	models.AddUserRoles(userData.UserID, userData.Roles)
 
 	c.JSON(http.StatusCreated, &userData)
 }
