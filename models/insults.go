@@ -14,9 +14,13 @@ type InsultData struct {
 
 type Insult struct {
 	gorm.Model
-	Text     string `json:"text"`
-	Severity uint8  `json:"severity" gorm:"default:0"`
-	Roles    []Role `gorm:"many2many:insult_roles"`
+	Text     string  `json:"text"`
+	Severity uint8   `json:"severity" gorm:"default:0"`
+	Roles    []*Role `gorm:"many2many:insult_roles"`
+}
+
+type APIInsult struct {
+	Text string `json:"text"`
 }
 
 // TODO: make all actions receiver functions
@@ -24,7 +28,7 @@ type Insult struct {
 func FindInsultsAction() ([]Insult, int64) {
 	var insults []Insult
 
-	result := DB.Find(&insults)
+	result := DB.Debug().Preload("Roles").Find(&insults)
 
 	if result.Error != nil {
 		fmt.Println("Cannot fetch insult data:", result.Error)
@@ -37,14 +41,20 @@ func FindInsultsAction() ([]Insult, int64) {
 func AddInsultAction(insult *Insult, roleNames *[]string) bool {
 	roles := GetRolesByName(roleNames)
 
-	if roles != nil {
-		insult.Roles = *roles
+	err := DB.Debug().Create(&insult)
+
+	if err.Error != nil {
+		fmt.Println("Cannot add insult data:", err)
+		return false
 	}
 
-	result := DB.Debug().Omit("Roles.*").Create(&insult)
+	err1 := DB.Debug().Model(&Insult{Model: gorm.Model{ID: insult.ID}}).
+		Omit("Roles.*").
+		Association("Roles").
+		Append(roles)
 
-	if result.Error != nil {
-		fmt.Println("Cannot add insult data:", result.Error)
+	if err1 != nil {
+		fmt.Println("Cannot add insult roles:", err1)
 		return false
 	}
 
@@ -72,6 +82,40 @@ func DeleteInsultAction(insult *Insult) bool {
 	}
 
 	return true
+}
+
+func GetInsultForUser(user_id *uint) (*gorm.DB, *APIInsult) {
+
+	var insults APIInsult
+
+	var result *gorm.DB
+
+	if user_id != nil && *user_id != 0 {
+		// user_id -> role -> insult
+		// result = models.DB.Order("random()").Limit(1).Where("id = ?", user_id).Find(&insult)
+
+		var insultIDs []uint
+
+		DB.Debug().Table("insult_roles").
+			Joins("INNER JOIN user_roles ON user_roles.role_id = insult_roles.role_id").
+			Where("user_id = ?", user_id).
+			Distinct("insult_id").
+			Pluck("insult_id", &insultIDs)
+
+		fmt.Println("Insults", insultIDs)
+
+		result = DB.Debug().Model(&Insult{}).Select("text").Order("random()").Limit(1).Take(&insults, insultIDs)
+
+		if result.Error != nil {
+			return result, &APIInsult{}
+		}
+
+	} else {
+		// TODO: add severity condition
+		result = DB.Debug().Table("insults").Order("random()").Limit(1).Take(&insults)
+	}
+
+	return result, &insults
 }
 
 // ---------- old shit ------------

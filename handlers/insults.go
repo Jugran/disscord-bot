@@ -6,13 +6,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type addInsultSchema struct {
 	Text     string   `json:"text" binding:"required"`
 	Severity uint8    `json:"severity" binding:"required"`
 	Roles    []string `json:"roles" binding:"required"`
+}
+
+type targetSchema struct {
+	ID *uint `uri:"target"`
 }
 
 func FetchInsultHandler(c *gin.Context) {
@@ -47,16 +50,19 @@ func AddInsultHandler(c *gin.Context) {
 }
 
 func FetchInsult(c *gin.Context) {
-	var insult models.Insult
-	target := c.Param("target")
+	var target targetSchema
 
-	var result *gorm.DB
-
-	if len(target) != 0 {
-		result = models.DB.Order("random()").Limit(1).Where("target = ?", target).Find(&insult)
-	} else {
-		result = models.DB.Order("random()").Limit(1).Find(&insult)
+	if err := c.ShouldBindUri(&target); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error":   err.Error(),
+			"message": "Invalid Target",
+		})
+		return
 	}
+
+	user_id := target.ID
+
+	result, insult := models.GetInsultForUser(user_id)
 
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -65,5 +71,5 @@ func FetchInsult(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"insult": insult, "target": target})
+	c.JSON(http.StatusOK, gin.H{"insults": insult.Text, "result": result.RowsAffected})
 }

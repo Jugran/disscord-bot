@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type User struct {
@@ -19,14 +20,19 @@ type User struct {
 
 type Role struct {
 	gorm.Model
-	Name string `json:"name" gorm:"uniqueIndex;not null;default:null"`
+	Name    string   `json:"name" gorm:"uniqueIndex;not null;default:null"`
+	Insults []Insult `gorm:"many2many:insult_roles"`
+}
+
+type APIRole struct {
+	Name string
 }
 
 // DB Model Actions
 
 func FetchAllUsersActions() ([]User, int64) {
 	var users []User
-	result := DB.Preload("Roles").Find(&users)
+	result := DB.Preload("Roles").Preload(clause.Associations).Find(&users)
 
 	if result.Error != nil {
 		fmt.Println("Cannot fetch user data:", result.Error)
