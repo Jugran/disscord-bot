@@ -3,75 +3,66 @@ package handlers
 import (
 	"diss-cord/models"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type addInsultSchema struct {
-	Text     string `json:"text" binding:"required"`
-	Target   string `json:"target" binding:"required"`
-	Severity uint8  `json:"severity" binding:"required"`
+	Text     string   `json:"text" binding:"required"`
+	Severity uint8    `json:"severity" binding:"required"`
+	Roles    []string `json:"roles" binding:"required"`
 }
 
-func GetInsultHandler(c *gin.Context) {
-	insultsData := models.NewInsults()
-	insult := insultsData.GetInsult()
+type targetSchema struct {
+	ID *uint `uri:"target"`
+}
+
+func FetchInsultHandler(c *gin.Context) {
+	insults, count := models.FindInsultsAction()
+
+	fmt.Printf("Fetched %d insult entries", count)
 
 	c.JSON(http.StatusOK, gin.H{
-		"insult": insult,
+		"insults": insults,
+		"count":   count,
 	})
 }
 
-func EchoResponseHandler(c *gin.Context) {
-	body, err := ioutil.ReadAll(c.Request.Body)
-
-	if err != nil {
-		// Handle error
-		fmt.Println("Error", err)
-		c.Status(http.StatusBadRequest)
-		return
-	}
-	jsonData := string(body)
-
-	fmt.Println(jsonData)
-
-	c.JSON(http.StatusAccepted, gin.H{
-		"data": jsonData,
-	})
-}
-
-func AddInsult(c *gin.Context) {
+func AddInsultHandler(c *gin.Context) {
 	var body addInsultSchema
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error":   err.Error(),
+			"message": "Invalid Input",
+		})
 		return
 	}
 
 	insult := models.Insult{
 		Text:     body.Text,
-		Target:   body.Target,
 		Severity: body.Severity,
 	}
 
-	models.AddInsult(&insult)
+	models.AddInsultAction(&insult, &body.Roles)
 
 	c.JSON(http.StatusCreated, &insult)
 }
 
 func FetchInsult(c *gin.Context) {
-	var insult models.Insult
-	target := c.Param("target")
+	var target targetSchema
 
-	var result *gorm.DB
-
-	if len(target) != 0 {
-		result = models.DB.Order("random()").Limit(1).Where("target = ?", target).Find(&insult)
-	} else {
-		result = models.DB.Order("random()").Limit(1).Find(&insult)
+	if err := c.ShouldBindUri(&target); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error":   err.Error(),
+			"message": "Invalid Target",
+		})
+		return
 	}
+
+	user_id := target.ID
+
+	result, insult := models.GetInsultForUser(user_id)
 
 	if result.Error != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -80,5 +71,5 @@ func FetchInsult(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"insult": insult, "target": target})
+	c.JSON(http.StatusOK, gin.H{"insults": insult.Text, "result": result.RowsAffected})
 }

@@ -12,5 +12,5 @@ require (
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
 	gorm.io/driver/sqlite v1.3.5
-	gorm.io/gorm v1.23.7
+	gorm.io/gorm v1.23.10
 )

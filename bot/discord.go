@@ -2,7 +2,6 @@ package bot
 
 import (
 	"diss-cord/models"
-	"diss-cord/models/insults"
 	"fmt"
 	"log"
 	"os"
@@ -15,7 +14,7 @@ import (
 
 type DiscordBot struct {
 	Session *discordgo.Session
-	Insults *insults.InsultData
+	Insults *models.InsultData
 }
 
 func NewBot(Token string) *DiscordBot {
