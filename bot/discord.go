@@ -4,10 +4,7 @@ import (
 	"diss-cord/models"
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -28,8 +25,8 @@ func NewBot(Token string) *DiscordBot {
 	}
 
 	session.Identify.Intents = discordgo.IntentsGuildMessages
-	bot.Session = session
 	session.AddHandler(bot.messageCreate)
+	bot.Session = session
 
 	insults := models.NewInsults()
 
@@ -58,20 +55,18 @@ func (b *DiscordBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCre
 	fmt.Println("Sent Message", msg.ID)
 }
 
-func (b *DiscordBot) Start(wg *sync.WaitGroup) {
+func (b *DiscordBot) Start(wg *sync.WaitGroup, quit <-chan bool) {
+	defer wg.Done()
 	err := b.Session.Open()
+	// Cleanly close down the Discord session.
+	defer b.Session.Close()
 
 	if err != nil {
 		log.Fatal("error opening connection,", err)
+		return
 	}
 
 	fmt.Println("Bot is now running. Press CTRL-C to exit.")
-
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
-
-	// Cleanly close down the Discord session.
-	b.Session.Close()
-	wg.Done()
+	<-quit
+	fmt.Println("Shutting down bot...")
 }

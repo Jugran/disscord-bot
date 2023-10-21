@@ -1,11 +1,12 @@
 package app
 
 import (
+	"context"
 	"diss-cord/handlers"
 	"diss-cord/models"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 
@@ -34,7 +35,7 @@ func (a *App) Initialize(config *models.Config) {
 }
 
 func echoResponseHandler(c *gin.Context) {
-	body, err := ioutil.ReadAll(c.Request.Body)
+	body, err := io.ReadAll(c.Request.Body)
 
 	// generic map type
 	var jsonData map[string]interface{}
@@ -76,8 +77,28 @@ func (a *App) SetRouters() {
 
 }
 
-func (a *App) Serve(wg *sync.WaitGroup) {
+func (a *App) Serve(wg *sync.WaitGroup, quit <-chan bool) {
+	defer wg.Done()
 	port := fmt.Sprintf(":%d", a.PORT)
-	a.Router.Run(port)
-	wg.Done()
+
+	srv := &http.Server{
+		Addr:    port,
+		Handler: a.Router,
+	}
+
+	done := make(chan bool)
+
+	go func() {
+		srv.ListenAndServe()
+		done <- true
+	}()
+
+	fmt.Println("Server started")
+	select {
+	case <-quit:
+		println("Signal received. Shutting down...")
+		srv.Shutdown(context.TODO())
+	case <-done:
+		fmt.Println("Server closed")
+	}
 }
