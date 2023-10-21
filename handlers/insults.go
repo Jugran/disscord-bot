@@ -15,7 +15,7 @@ type addInsultSchema struct {
 }
 
 type targetSchema struct {
-	ID *uint `uri:"target"`
+	ID *uint `uri:"target"` // user id of the target user
 }
 
 func FetchInsultHandler(c *gin.Context) {

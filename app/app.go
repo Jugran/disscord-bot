@@ -30,8 +30,6 @@ func (a *App) Initialize(config *models.Config) {
 	a.Router.SetTrustedProxies(nil)
 
 	// set db values here
-
-	//  init discord bot instance here
 }
 
 func echoResponseHandler(c *gin.Context) {

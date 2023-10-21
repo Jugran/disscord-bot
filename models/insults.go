@@ -92,19 +92,23 @@ func GetInsultForUser(user_id *uint) (*gorm.DB, *APIInsult) {
 
 	if user_id != nil && *user_id != 0 {
 		// user_id -> role -> insult
-		// result = models.DB.Order("random()").Limit(1).Where("id = ?", user_id).Find(&insult)
+		var insult string
 
-		var insultIDs []uint
-
-		DB.Debug().Table("insult_roles").
+		result = DB.Debug().Table("insult_roles").
 			Joins("INNER JOIN user_roles ON user_roles.role_id = insult_roles.role_id").
 			Where("user_id = ?", user_id).
 			Distinct("insult_id").
-			Pluck("insult_id", &insultIDs)
+			Joins("INNER JOIN insults ON insults.id = insult_roles.insult_id").
+			Select("insults.text").
+			Order("random()").
+			Limit(1).
+			Pluck("text", &insult)
 
-		fmt.Println("Insults", insultIDs)
-
-		result = DB.Debug().Model(&Insult{}).Select("text").Order("random()").Limit(1).Take(&insults, insultIDs)
+		if insult != "" {
+			insults.Text = insult
+		} else {
+			result = DB.Debug().Model(&Insult{}).Select("text").Order("random()").Limit(1).Take(&insults)
+		}
 
 		if result.Error != nil {
 			return result, &APIInsult{}
