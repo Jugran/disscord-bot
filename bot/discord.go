@@ -53,10 +53,10 @@ func (b *DiscordBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCre
 	}
 
 	// fetch insults for user
-	result, insult := models.GetInsultForUser(&user.ID)
+	insult, err := user.GetInsult()
 
-	if result.Error != nil {
-		fmt.Println("Cannot fetch user insult:", result.Error)
+	if err != nil {
+		fmt.Println("Cannot fetch user insult:", err)
 		return
 	}
 

@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"math/rand"
 
 	"gorm.io/gorm"
 )
@@ -28,7 +27,7 @@ type APIInsult struct {
 func FindInsultsAction() ([]Insult, int64) {
 	var insults []Insult
 
-	result := DB.Debug().Preload("Roles").Find(&insults)
+	result := DB.Preload("Roles").Find(&insults)
 
 	if result.Error != nil {
 		fmt.Println("Cannot fetch insult data:", result.Error)
@@ -41,14 +40,14 @@ func FindInsultsAction() ([]Insult, int64) {
 func AddInsultAction(insult *Insult, roleNames *[]string) bool {
 	roles := GetRolesByName(roleNames)
 
-	err := DB.Debug().Create(&insult)
+	err := DB.Create(&insult)
 
 	if err.Error != nil {
 		fmt.Println("Cannot add insult data:", err)
 		return false
 	}
 
-	err1 := DB.Debug().Model(&Insult{Model: gorm.Model{ID: insult.ID}}).
+	err1 := DB.Model(&Insult{Model: gorm.Model{ID: insult.ID}}).
 		Omit("Roles.*").
 		Association("Roles").
 		Append(roles)
@@ -74,7 +73,7 @@ func UpdateInsultAction(insult *Insult) int64 {
 }
 
 func DeleteInsultAction(insult *Insult) bool {
-	result := DB.Debug().Delete(&insult)
+	result := DB.Delete(&insult)
 
 	if result.Error != nil {
 		fmt.Println("Cannot add insult data:", result.Error)
@@ -94,7 +93,7 @@ func GetInsultForUser(user_id *uint) (*gorm.DB, *APIInsult) {
 		// user_id -> role -> insult
 		var insult string
 
-		result = DB.Debug().Table("insult_roles").
+		result = DB.Table("insult_roles").
 			Joins("INNER JOIN user_roles ON user_roles.role_id = insult_roles.role_id").
 			Where("user_id = ?", user_id).
 			Distinct("insult_id").
@@ -107,7 +106,7 @@ func GetInsultForUser(user_id *uint) (*gorm.DB, *APIInsult) {
 		if insult != "" {
 			insults.Text = insult
 		} else {
-			result = DB.Debug().Model(&Insult{}).Select("text").Order("random()").Limit(1).Take(&insults)
+			result = DB.Model(&Insult{}).Select("text").Order("random()").Limit(1).Take(&insults)
 		}
 
 		if result.Error != nil {
@@ -116,38 +115,8 @@ func GetInsultForUser(user_id *uint) (*gorm.DB, *APIInsult) {
 
 	} else {
 		// TODO: add severity condition
-		result = DB.Debug().Table("insults").Order("random()").Limit(1).Take(&insults)
+		result = DB.Table("insults").Order("random()").Limit(1).Take(&insults)
 	}
 
 	return result, &insults
-}
-
-// ---------- old shit ------------
-
-func NewInsults() InsultData {
-	insultData := InsultData{
-		Insults: []Insult{},
-	}
-
-	insultData.LoadInsults()
-	return insultData
-}
-
-func (insultData *InsultData) LoadInsults() {
-	insultData.Insults = []Insult{
-		{
-			Text:     "You're a jerk.",
-			Severity: 1,
-		},
-		{
-			Text:     "You're an idiot.",
-			Severity: 1,
-		},
-	}
-}
-
-func (insData *InsultData) GetInsult() string {
-	randIndex := rand.Intn(len(insData.Insults))
-	insult := insData.Insults[randIndex].Text
-	return insult
 }
