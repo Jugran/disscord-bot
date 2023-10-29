@@ -20,8 +20,8 @@ func main() {
 	config := models.NewConfig()
 
 	app := app.App{}
-	app.Initialize(&config)
-	app.SetRouters()
+	closeDB := app.Initialize(&config)
+	defer closeDB()
 	wg.Add(1)
 	go app.Serve(&wg, quit)
 

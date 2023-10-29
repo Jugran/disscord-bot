@@ -28,6 +28,7 @@ func (a *App) Initialize(config *models.Config) func() {
 	a.DB = models.DB
 
 	a.Router.SetTrustedProxies(nil)
+	a.SetRouters()
 
 	return func() {
 		sql, err := models.DB.DB()
