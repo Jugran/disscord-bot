@@ -13,7 +13,7 @@ type User struct {
 	gorm.Model
 	Name              *string `json:"name" gorm:"type:varchar(30)"`
 	Disrespect        float32 `json:"disrespect" gorm:"default:0.5"`
-	DiscordID         string  `json:"discord_id" gorm:"uniqueIndex;not null;default:null"`
+	DiscordID         string  `json:"discord_id" gorm:"uniqueIndex;not null"`
 	SeverityThreshold uint8   `json:"severity_threshold" gorm:"default:2"`
 	Roles             []Role  `gorm:"many2many:user_roles"`
 }
@@ -50,6 +50,23 @@ func AddUserAction(user *User, roleNames *[]string) bool {
 	}
 
 	result := DB.Debug().Omit("Roles.*").Create(&user)
+
+	if result.Error != nil {
+		fmt.Println("Cannot add user data:", result.Error)
+		return false
+	}
+
+	return true
+}
+
+func (u *User) AddNewUser(roleNames *[]string) bool {
+	roles := GetRolesByName(roleNames)
+
+	if roles != nil {
+		u.Roles = *roles
+	}
+
+	result := DB.Debug().Omit("Roles.*").Create(&u)
 
 	if result.Error != nil {
 		fmt.Println("Cannot add user data:", result.Error)
@@ -108,10 +125,36 @@ func GetRolesByName(roleNames *[]string) *[]Role {
 
 	result := DB.Debug().Where("name IN (?)", *roleNames).Find(&roles)
 
-	if result.Error != nil {
-		fmt.Println("Cannot fetch role:", result.Error)
-		return nil
+	if result.Error == nil && len(roles) > 0 {
+		return &roles
+	}
+
+	fmt.Println("Cannot fetch roles:", result.Error)
+
+	roles = []Role{}
+	// loop through roleNames
+	for _, roleName := range *roleNames {
+		role := Role{}
+		result := DB.FirstOrCreate(&role, Role{Name: roleName})
+		if result.Error != nil {
+			continue
+		}
+		roles = append(roles, role)
 	}
 
 	return &roles
+}
+
+func CheckDiscordUser(discordID string) (*User, error) {
+	user := User{
+		DiscordID: discordID,
+	}
+
+	result := DB.Where(&User{DiscordID: discordID}).First(&user)
+
+	if result.Error != nil {
+		return &user, result.Error
+	}
+
+	return &user, nil
 }

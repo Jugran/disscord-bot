@@ -10,11 +10,11 @@ import (
 )
 
 type DiscordBot struct {
-	Session *discordgo.Session
-	Insults *models.InsultData
+	Session     *discordgo.Session
+	DefaultRole string
 }
 
-func NewBot(Token string) *DiscordBot {
+func NewBot(Token string, DefaultRole string) *DiscordBot {
 
 	bot := DiscordBot{}
 
@@ -26,12 +26,9 @@ func NewBot(Token string) *DiscordBot {
 
 	session.Identify.Intents = discordgo.IntentsGuildMessages
 	session.AddHandler(bot.messageCreate)
+
 	bot.Session = session
-
-	insults := models.NewInsults()
-
-	bot.Insults = &insults
-	bot.Insults.LoadInsults()
+	bot.DefaultRole = DefaultRole
 
 	return &bot
 }
@@ -43,14 +40,32 @@ func (b *DiscordBot) messageCreate(s *discordgo.Session, m *discordgo.MessageCre
 		return
 	}
 
-	fmt.Println("Message received ->", m.Content)
+	// fmt.Println("Message received ->", m.Content, "By user", m.Author.Username, "Discord ID", m.Author.ID)
 
-	messageReply := b.Insults.GetInsult()
+	user, err := models.CheckDiscordUser(m.Author.ID)
+
+	if err != nil {
+		// user not found, add new user
+		user.Name = &m.Author.Username
+		roles := &[]string{b.DefaultRole}
+
+		user.AddNewUser(roles)
+	}
+
+	// fetch insults for user
+	result, insult := models.GetInsultForUser(&user.ID)
+
+	if result.Error != nil {
+		fmt.Println("Cannot fetch user insult:", result.Error)
+		return
+	}
+
+	messageReply := insult.Text
 
 	// _, err := s.ChannelMessageSend(m.ChannelID, "Hello to you too sir!")
 	msg, err := s.ChannelMessageSendReply(m.ChannelID, messageReply, m.Reference())
 	if err != nil {
-		fmt.Println(err)
+		return
 	}
 	fmt.Println("Sent Message", msg.ID)
 }

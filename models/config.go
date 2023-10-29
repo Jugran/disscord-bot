@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Token string
-	Port  uint64
+	Token       string
+	Port        uint64
+	DefaultRole string
 }
 
 func init() {
@@ -29,8 +30,9 @@ func NewConfig() Config {
 	}
 
 	config := Config{
-		Token: os.Getenv("TOKEN"),
-		Port:  port,
+		Token:       os.Getenv("TOKEN"),
+		DefaultRole: os.Getenv("DEFAULT_ROLE"),
+		Port:        port,
 	}
 
 	return config
