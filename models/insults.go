@@ -61,7 +61,6 @@ func AddInsultAction(insult *Insult, roleNames *[]string) bool {
 }
 
 func UpdateInsultAction(insult *Insult) int64 {
-	// This won't work, unless pass in ID from API
 	result := DB.Model(&insult).Updates(insult)
 
 	if result.Error != nil {
