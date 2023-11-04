@@ -3,6 +3,7 @@ package models
 // https://foaas.com/
 
 import (
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ type User struct {
 	gorm.Model
 	Name              *string `json:"name" gorm:"type:varchar(30)"`
 	Disrespect        float32 `json:"disrespect" gorm:"default:0.5"`
-	DiscordID         string  `json:"discord_id" gorm:"uniqueIndex;not null;default:null"`
+	DiscordID         string  `json:"discord_id" gorm:"uniqueIndex;not null"`
 	SeverityThreshold uint8   `json:"severity_threshold" gorm:"default:2"`
 	Roles             []Role  `gorm:"many2many:user_roles"`
 }
@@ -29,6 +30,45 @@ type APIRole struct {
 }
 
 // DB Model Actions
+
+func (u *User) AddNewUser(roleNames *[]string) bool {
+	roles := GetRolesByName(roleNames)
+
+	if roles != nil {
+		u.Roles = *roles
+	}
+
+	result := DB.Omit("Roles.*").Create(&u)
+
+	if result.Error != nil {
+		fmt.Println("Cannot add user data:", result.Error)
+		return false
+	}
+
+	return true
+}
+
+func (u *User) GetInsult() (Insult, error) {
+	var insult Insult
+
+	if len(u.Roles) == 0 {
+		return insult, errors.New("no roles found")
+	}
+
+	var roleIds []uint
+	for _, role := range u.Roles {
+		roleIds = append(roleIds, role.ID)
+	}
+
+	result := DB.Preload("Roles").
+		Joins("INNER JOIN insult_roles ON insults.id = insult_roles.insult_id").
+		Where("insult_roles.role_id IN ?", roleIds).
+		Where("severity >= ?", u.SeverityThreshold).
+		Order("random()").
+		First(&insult)
+
+	return insult, result.Error
+}
 
 func FetchAllUsersActions() ([]User, int64) {
 	var users []User
@@ -49,7 +89,7 @@ func AddUserAction(user *User, roleNames *[]string) bool {
 		user.Roles = *roles
 	}
 
-	result := DB.Debug().Omit("Roles.*").Create(&user)
+	result := DB.Omit("Roles.*").Create(&user)
 
 	if result.Error != nil {
 		fmt.Println("Cannot add user data:", result.Error)
@@ -73,8 +113,7 @@ func AddRoleAction(role *Role) bool {
 func AddUserRolesAction(userID int, roleNames []string) bool {
 	roles := GetRolesByName(&roleNames)
 
-	err := DB.Debug().
-		Model(&User{Model: gorm.Model{ID: uint(userID)}}).
+	err := DB.Model(&User{Model: gorm.Model{ID: uint(userID)}}).
 		Omit("Roles.*").
 		Association("Roles").
 		Append(roles)
@@ -106,12 +145,38 @@ func GetRolesByName(roleNames *[]string) *[]Role {
 
 	roles := []Role{}
 
-	result := DB.Debug().Where("name IN (?)", *roleNames).Find(&roles)
+	result := DB.Where("name IN (?)", *roleNames).Find(&roles)
 
-	if result.Error != nil {
-		fmt.Println("Cannot fetch role:", result.Error)
-		return nil
+	if result.Error == nil && len(roles) > 0 {
+		return &roles
+	}
+
+	fmt.Println("Cannot fetch roles:", result.Error)
+
+	roles = []Role{}
+	// loop through roleNames
+	for _, roleName := range *roleNames {
+		role := Role{}
+		result := DB.FirstOrCreate(&role, Role{Name: roleName})
+		if result.Error != nil {
+			continue
+		}
+		roles = append(roles, role)
 	}
 
 	return &roles
+}
+
+func CheckDiscordUser(discordID string) (*User, error) {
+	user := User{
+		DiscordID: discordID,
+	}
+
+	result := DB.Where(&User{DiscordID: discordID}).Preload("Roles").First(&user)
+
+	if result.Error != nil {
+		return &user, result.Error
+	}
+
+	return &user, nil
 }

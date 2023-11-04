@@ -20,7 +20,7 @@ type App struct {
 	DB     *gorm.DB
 }
 
-func (a *App) Initialize(config *models.Config) {
+func (a *App) Initialize(config *models.Config) func() {
 	a.Router = gin.Default()
 	a.PORT = config.Port
 
@@ -28,8 +28,17 @@ func (a *App) Initialize(config *models.Config) {
 	a.DB = models.DB
 
 	a.Router.SetTrustedProxies(nil)
+	a.SetRouters()
 
-	// set db values here
+	return func() {
+		sql, err := models.DB.DB()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		sql.Close()
+	}
 }
 
 func echoResponseHandler(c *gin.Context) {

@@ -4,6 +4,7 @@ package main
 
 import (
 	"diss-cord/app"
+	"diss-cord/bot"
 	"diss-cord/models"
 	"os"
 	"os/signal"
@@ -15,20 +16,18 @@ func main() {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	wg.Add(1)
-
 	quit := make(chan bool)
 	config := models.NewConfig()
 
 	app := app.App{}
-	app.Initialize(&config)
-	app.SetRouters()
+	closeDB := app.Initialize(&config)
+	defer closeDB()
 	wg.Add(1)
 	go app.Serve(&wg, quit)
 
-	// bot := bot.NewBot(config.Token)
-	// wg.Add(1)
-	// go bot.Start(&wg, quit)
+	bot := bot.NewBot(config.Token, config.DefaultRole)
+	wg.Add(1)
+	go bot.Start(&wg, quit)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)

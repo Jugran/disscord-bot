@@ -2,4 +2,4 @@
 
 tmp/
 .notes
-.air.toml
+!vscode/launch.json
